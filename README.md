@@ -21,10 +21,11 @@
 python IFC_checker.py <путь_к_папке> [--lang <язык>] [--log <имя_лога>]
 ```
 
-| Аргумент | Описание                                         | Значение по умолчанию | 
-| folder   | Путь к директории мониторинга                    |                       | 
-| --lang   | Выбор языка сообщений: en/ru/de (опционально)    | en                    | 
-| --log    | Имя лог-файла для записи сообщений (опционально) | ifc_monitor.log       | 
+|Аргумент|Описание|Значение по умолчанию|
+|---|---|---|
+|folder|Путь к директории мониторинга| | 
+|--lang|Выбор языка сообщений: en/ru/de (опционально)|en| 
+|--log|Имя лог-файла для записи сообщений (опционально)|ifc_monitor.log| 
 
 ---
 
@@ -93,10 +94,11 @@ The `IFC_checker.py` program is designed for automatic monitoring of changes in 
 python IFC_checker.py <folder_path> [--lang <language>] [--log <log_filename>]
 ```
 
-| Argument | Description                                    | Default value   | 
-| folder   | Path to the folder to monitor                  |                 | 
-| --lang   | Message language: en, ru, de (optional)        | en              | 
-| --log    | ИLog file name for recording events (optional) | ifc_monitor.log |
+|Argument|Description|Default value|
+|---|---|---| 
+|folder|Path to the folder to monitor| | 
+|--lang|Message language: en, ru, de (optional)|en| 
+|--log|Log file name for recording events (optional)|ifc_monitor.log|
 
 ---
 
