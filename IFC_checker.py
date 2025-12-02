@@ -39,6 +39,8 @@ class IFCFileHandler(FileSystemEventHandler):
     def __init__(self, lang="en", base_folder=""):
         self.lang = lang if lang in MESSAGES else "en"
         self.file_records = {}  # словарь: путь -> mtime
+        self.last_update_time = {}  # словарь: путь -> время последнего логирования
+        self.debounce_delay = 1.0  # задержка в секундах
         self.base_folder = os.path.abspath(base_folder)
 
     def relative_path(self, full_path):
@@ -60,6 +62,14 @@ class IFCFileHandler(FileSystemEventHandler):
         except Exception:
             return None
 
+    def should_log_update(self, path):
+        current_time = time.time()
+        last_time = self.last_update_time.get(path, 0)
+        if current_time - last_time >= self.debounce_delay:
+            self.last_update_time[path] = current_time
+            return True
+        return False
+
     def on_created(self, event):
         if not event.is_directory and event.src_path.lower().endswith(".ifc"):
             file_mtime = self.get_file_mtime(event.src_path)
@@ -73,12 +83,15 @@ class IFCFileHandler(FileSystemEventHandler):
 
             if new_mtime and new_mtime != old_mtime:
                 self.file_records[event.src_path] = new_mtime
-                self.log_message("updated", event.src_path)
+                if self.should_log_update(event.src_path):
+                    self.log_message("updated", event.src_path)
 
     def on_deleted(self, event):
         if not event.is_directory and event.src_path.lower().endswith(".ifc"):
             if event.src_path in self.file_records:
                 del self.file_records[event.src_path]
+            if event.src_path in self.last_update_time:
+                del self.last_update_time[event.src_path]
             self.log_message("deleted", event.src_path)
 
 
