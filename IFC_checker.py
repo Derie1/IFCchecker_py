@@ -36,7 +36,19 @@ MESSAGES = {
 
 
 class IFCFileHandler(FileSystemEventHandler):
+    """Handler for monitoring IFC file system events.
+
+    Tracks creation, modification, and deletion of .ifc files with debounce mechanism
+    to prevent duplicate notifications from rapid successive events.
+    """
+
     def __init__(self, lang="en", base_folder=""):
+        """Initialize IFC file handler.
+
+        Args:
+            lang (str): Language for messages ('en', 'ru', 'de'). Defaults to 'en'.
+            base_folder (str): Base folder for relative path calculation. Defaults to ''.
+        """
         self.lang = lang if lang in MESSAGES else "en"
         self.file_records = {}  # словарь: путь -> mtime
         self.last_update_time = {}  # словарь: путь -> время последнего логирования
@@ -44,6 +56,14 @@ class IFCFileHandler(FileSystemEventHandler):
         self.base_folder = os.path.abspath(base_folder)
 
     def relative_path(self, full_path):
+        """Convert absolute path to relative path from base folder.
+
+        Args:
+            full_path (str): Absolute file path.
+
+        Returns:
+            str: Relative path with backslash separators, or original path on error.
+        """
         try:
             rel = os.path.relpath(full_path, self.base_folder)
             return "\\" + rel.replace("/", "\\")
@@ -51,18 +71,40 @@ class IFCFileHandler(FileSystemEventHandler):
             return full_path
 
     def log_message(self, key, path):
+        """Log and print a message with timestamp.
+
+        Args:
+            key (str): Message key from MESSAGES dictionary ('new', 'updated', 'deleted').
+            path (str): File path to include in message.
+        """
         rel_path = self.relative_path(path)
         msg = MESSAGES[self.lang][key].format(rel_path)
         print(f"{datetime.now():%Y-%m-%d %H:%M:%S} {msg}")
         logging.info(msg)
 
     def get_file_mtime(self, path):
+        """Get file modification time.
+
+        Args:
+            path (str): File path.
+
+        Returns:
+            float: Modification time as Unix timestamp, or None if file not accessible.
+        """
         try:
             return os.path.getmtime(path)
         except Exception:
             return None
 
     def should_log_update(self, path):
+        """Check if enough time has passed to log another update for this file (debounce).
+
+        Args:
+            path (str): File path.
+
+        Returns:
+            bool: True if update should be logged, False if within debounce window.
+        """
         current_time = time.time()
         last_time = self.last_update_time.get(path, 0)
         if current_time - last_time >= self.debounce_delay:
@@ -71,12 +113,24 @@ class IFCFileHandler(FileSystemEventHandler):
         return False
 
     def on_created(self, event):
+        """Handle file creation event.
+
+        Args:
+            event: FileSystemEvent object from watchdog.
+        """
         if not event.is_directory and event.src_path.lower().endswith(".ifc"):
             file_mtime = self.get_file_mtime(event.src_path)
             self.file_records[event.src_path] = file_mtime
             self.log_message("new", event.src_path)
 
     def on_modified(self, event):
+        """Handle file modification event.
+
+        Checks if modification time has changed and logs update if debounce condition is met.
+
+        Args:
+            event: FileSystemEvent object from watchdog.
+        """
         if not event.is_directory and event.src_path.lower().endswith(".ifc"):
             new_mtime = self.get_file_mtime(event.src_path)
             old_mtime = self.file_records.get(event.src_path)
@@ -87,6 +141,11 @@ class IFCFileHandler(FileSystemEventHandler):
                     self.log_message("updated", event.src_path)
 
     def on_deleted(self, event):
+        """Handle file deletion event.
+
+        Args:
+            event: FileSystemEvent object from watchdog.
+        """
         if not event.is_directory and event.src_path.lower().endswith(".ifc"):
             if event.src_path in self.file_records:
                 del self.file_records[event.src_path]
@@ -96,6 +155,14 @@ class IFCFileHandler(FileSystemEventHandler):
 
 
 def monitor_folder(path_to_watch, lang="en"):
+    """Start monitoring a folder for IFC file changes.
+
+    Runs indefinitely until interrupted (Ctrl+C).
+
+    Args:
+        path_to_watch (str): Path to folder to monitor.
+        lang (str): Language for messages ('en', 'ru', 'de'). Defaults to 'en'.
+    """
     event_handler = IFCFileHandler(lang, path_to_watch)
     observer = Observer()
     observer.schedule(event_handler, path=path_to_watch, recursive=True)
