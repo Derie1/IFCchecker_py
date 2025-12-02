@@ -2,7 +2,6 @@ import time
 import os
 import logging
 import argparse
-import hashlib
 from watchdog.observers import Observer
 from watchdog.events import FileSystemEventHandler
 from datetime import datetime
@@ -39,7 +38,7 @@ MESSAGES = {
 class IFCFileHandler(FileSystemEventHandler):
     def __init__(self, lang="en", base_folder=""):
         self.lang = lang if lang in MESSAGES else "en"
-        self.file_hashes = {}  # словарь: путь -> хэш
+        self.file_records = {}  # словарь: путь -> mtime
         self.base_folder = os.path.abspath(base_folder)
 
     def relative_path(self, full_path):
@@ -55,32 +54,31 @@ class IFCFileHandler(FileSystemEventHandler):
         print(f"{datetime.now():%Y-%m-%d %H:%M:%S} {msg}")
         logging.info(msg)
 
-    def get_file_hash(self, path):
+    def get_file_mtime(self, path):
         try:
-            with open(path, "rb") as f:
-                return hashlib.md5(f.read()).hexdigest()
+            return os.path.getmtime(path)
         except Exception:
             return None
 
     def on_created(self, event):
         if not event.is_directory and event.src_path.lower().endswith(".ifc"):
-            file_hash = self.get_file_hash(event.src_path)
-            if file_hash:
-                self.file_hashes[event.src_path] = file_hash
+            file_mtime = self.get_file_mtime(event.src_path)
+            self.file_records[event.src_path] = file_mtime
             self.log_message("new", event.src_path)
 
     def on_modified(self, event):
         if not event.is_directory and event.src_path.lower().endswith(".ifc"):
-            new_hash = self.get_file_hash(event.src_path)
-            old_hash = self.file_hashes.get(event.src_path)
-            if new_hash and new_hash != old_hash:
-                self.file_hashes[event.src_path] = new_hash
+            new_mtime = self.get_file_mtime(event.src_path)
+            old_mtime = self.file_records.get(event.src_path)
+
+            if new_mtime and new_mtime != old_mtime:
+                self.file_records[event.src_path] = new_mtime
                 self.log_message("updated", event.src_path)
 
     def on_deleted(self, event):
         if not event.is_directory and event.src_path.lower().endswith(".ifc"):
-            if event.src_path in self.file_hashes:
-                del self.file_hashes[event.src_path]
+            if event.src_path in self.file_records:
+                del self.file_records[event.src_path]
             self.log_message("deleted", event.src_path)
 
 
